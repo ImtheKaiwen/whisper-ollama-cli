@@ -65,10 +65,13 @@ class OllamaConversationAnalyzer:
         url: str = "http://127.0.0.1:11434",
         model: str = "gemma2:2b",
         timeout_seconds: float = 60.0,
+        strict_evidence_ids: bool = True,
     ) -> None:
         self.url = url.rstrip("/")
         self.model = model
         self.timeout_seconds = timeout_seconds
+        self.strict_evidence_ids = strict_evidence_ids
+        self.last_invalid_evidence_ids: tuple[str, ...] = ()
 
     def analyze(self, timeline: Timeline) -> AnalysisResult:
         allowed_ids = {item.segment_id for item in timeline.segments}
@@ -129,8 +132,12 @@ class OllamaConversationAnalyzer:
         if missing:
             raise ValueError(f"Analiz alanları eksik: {sorted(missing)}")
         evidence = tuple(str(item) for item in data["evidence_segment_ids"])
-        if any(item not in allowed_ids for item in evidence):
+        invalid_evidence = tuple(item for item in evidence if item not in allowed_ids)
+        self.last_invalid_evidence_ids = invalid_evidence
+        if invalid_evidence and self.strict_evidence_ids:
             raise ValueError("Analiz, timeline dışında kanıt kimliği üretti")
+        if invalid_evidence:
+            evidence = tuple(item for item in evidence if item in allowed_ids)
         confidence = float(data["confidence"])
         if not 0.0 <= confidence <= 1.0:
             raise ValueError("confidence 0 ile 1 arasında olmalıdır")

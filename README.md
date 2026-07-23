@@ -241,6 +241,91 @@ korunarak eşit uzunlukta mono dizilere ayrılır, tek Faster-Whisper modeliyle 
 çevrilir, mutlak zamanlarına göre birleştirilir ve ardından Ollama analizine gönderilir.
 Aynı anda konuşmalar silinmez; `overlap_pairs` alanında ayrıca raporlanır.
 
+### En basit üst sınıf kullanımı
+
+Yeni stereo giriş noktası `StereoPipeline.py` dosyasıdır. `main.py` değiştirilmemiştir.
+
+```python
+from StereoPipeline import StereoPipeline
+
+pipeline = StereoPipeline()
+result = pipeline.analyze("voice_path.wav")
+```
+
+Türkçe dışı veya dili bilinmeyen bir kayıt için:
+
+```python
+pipeline = StereoPipeline(language="auto")
+result = pipeline.analyze("voice_path.wav")
+```
+
+`analyze()` sırasıyla stereo doğrulama, L/R kanal ayırma, kanal kalite/VAD
+ölçümü, iki kanalın ayrı Whisper transkripsiyonu, kelime boşluğu normalizasyonu,
+zaman sıralı timeline birleştirme, Ollama analizi, JSON/Markdown/log yazımı ve
+analiz sonucunu terminale basma işlemlerini yapar.
+
+Her adım tek başına da kullanılabilir:
+
+```python
+channels = pipeline.split_channels("voice_path.wav")
+quality = pipeline.measure_channel_quality(channels)
+activity = pipeline.detect_speech_activity(channels)
+agent_segments = pipeline.transcribe_channel(channels[0])
+customer_segments = pipeline.transcribe_channel(channels[1])
+timeline = pipeline.merge_transcripts(
+    {
+        "agent": tuple(agent_segments),
+        "customer": tuple(customer_segments),
+    },
+    activity,
+)
+full_transcript = pipeline.build_full_transcript(timeline)
+analysis = pipeline.send_to_analysis(timeline)
+pipeline.print_analysis_result(analysis)
+```
+
+Varsayılan çıktı klasörü ses dosyasının adına göre oluşturulur:
+
+```text
+artifacts/stereo_pipeline/<dosya_adı>/result.json
+artifacts/stereo_pipeline/<dosya_adı>/audit.json
+artifacts/stereo_pipeline/<dosya_adı>/report.md
+artifacts/stereo_pipeline/<dosya_adı>/pipeline.log
+```
+
+### Gelecekte kullanılacak queue hook'ları
+
+Whisper ve analiz queue özellikleri varsayılan olarak kapalıdır. Bu nedenle
+normal kullanımda broker bağlantısı veya queue mesajı oluşmaz.
+
+```python
+from StereoPipeline import StereoPipeline, QueueOptions
+
+pipeline = StereoPipeline(
+    queue_options=QueueOptions(
+        whisper_enabled=False,
+        analysis_enabled=False,
+    )
+)
+```
+
+Canlı sisteme geçerken `publish(queue_name, payload)` metoduna sahip RabbitMQ,
+Kafka veya başka bir publisher adaptörü verilerek özellikler açılabilir:
+
+```python
+pipeline = StereoPipeline(
+    queue_options=QueueOptions(
+        whisper_enabled=True,
+        analysis_enabled=True,
+    ),
+    queue_publisher=my_queue_publisher,
+)
+```
+
+Whisper queue mesajı ayrılmış mono kanalın yolunu, kanal numarasını, konuşmacıyı,
+örnekleme hızını ve süreyi taşır. Analiz queue mesajı ise tam transcript,
+konuşmacı etiketli timeline ve overlap bilgilerini taşır.
+
 Çalıştırma:
 
 ```powershell

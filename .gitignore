@@ -16,6 +16,14 @@ htmlcov/
 docs/rendered_report/
 docs/*_QA.pdf
 
+# Local handoff reports and private working documents
+local_reports/
+
+# Ad-hoc local input files placed in the project root
+/gorusme.wav
+/reference.json
+/test_stereo_usage.py
+
 # Editor and operating-system noise
 .DS_Store
 Thumbs.db
