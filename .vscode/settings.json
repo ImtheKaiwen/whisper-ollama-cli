@@ -1,0 +1,14 @@
+{
+  "files.exclude": {
+    "**/.agents": true,
+    "**/.env": true,
+    "**/__pycache__": true,
+    "**/*.pyc": true,
+    "artifacts": true,
+    "venv": true
+  },
+  "search.exclude": {
+    "artifacts": true,
+    "venv": true
+  }
+}

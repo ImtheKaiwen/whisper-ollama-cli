@@ -1,0 +1,1 @@
+"""Stereo pipeline test suite."""

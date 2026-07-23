@@ -224,3 +224,83 @@ $env:HF_HUB_DISABLE_XET='1'
 
 Doğru mikrofonun varsayılan olduğundan emin olun ve `SPEECH_THRESHOLD` değerini `0.008` seviyesine düşürün.
 
+## 8. Modüler stereo dosya işleme
+
+Canlı mikrofon uygulaması (`main.py`) değiştirilmeden, offline stereo görüşmeler için
+ayrı bir sınıf tabanlı iş hattı `stereo_pipeline/` altında bulunur.
+
+Kanal sözleşmesi varsayılan olarak:
+
+```text
+Sol kanal (0)  → agent
+Sağ kanal (1) → customer
+```
+
+Stereo dosya Whisper'a doğrudan verilmez. İki kanal ortak başlangıç ve sessizlikleri
+korunarak eşit uzunlukta mono dizilere ayrılır, tek Faster-Whisper modeliyle sırayla
+çevrilir, mutlak zamanlarına göre birleştirilir ve ardından Ollama analizine gönderilir.
+Aynı anda konuşmalar silinmez; `overlap_pairs` alanında ayrıca raporlanır.
+
+Çalıştırma:
+
+```powershell
+.\venv\Scripts\python.exe -m stereo_pipeline.cli .\ornek_stereo.wav `
+  --output-dir .\artifacts\stereo_run
+```
+
+Türkçe dışı veya karışık dil testinde otomatik dil algılama:
+
+```powershell
+.\venv\Scripts\python.exe -m stereo_pipeline.cli .\ornek_stereo.wav `
+  --output-dir .\artifacts\stereo_run `
+  --language auto
+```
+
+Çıktılar:
+
+```text
+artifacts/stereo_run/result.json  → makine tarafından okunabilir sonuç ve aşama izleri
+artifacts/stereo_run/audit.json   → kanal bazlı transcript, merge, Ollama ve doğrulama olayları
+artifacts/stereo_run/report.md    → okunabilir timeline, kalite, analiz ve süre raporu
+```
+
+Kanal isimleri farklıysa:
+
+```powershell
+.\venv\Scripts\python.exe -m stereo_pipeline.cli .\ornek_stereo.wav `
+  --left-speaker temsilci `
+  --right-speaker musteri
+```
+
+Testler:
+
+```powershell
+.\venv\Scripts\python.exe -m unittest discover -s tests -v
+```
+
+İnsan etiketli referans JSON varsa WER, zaman kayması ve overlap doğrulaması:
+
+```powershell
+.\venv\Scripts\python.exe -m stereo_pipeline.cli .\gorusme.wav `
+  --output-dir .\artifacts\gorusme_run `
+  --language auto `
+  --reference-json .\reference.json
+```
+
+Deterministik zaman/çakışma fixture'ı üretmek için:
+
+```powershell
+.\venv\Scripts\python.exe tools\generate_stereo_fixture.py
+```
+
+İki mono konuşmayı sessizlikleri koruyarak bir stereo fixture'a yerleştirmek için:
+
+```powershell
+.\venv\Scripts\python.exe tools\compose_stereo_fixture.py `
+  --left .\agent.wav `
+  --right .\customer.wav `
+  --left-offset 0.5 `
+  --right-offset 1.5 `
+  --output .\stereo_agent_customer.wav
+```
+
