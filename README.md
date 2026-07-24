@@ -377,6 +377,77 @@ def publish(queue_name: str, payload: dict) -> None:
     ...
 ```
 
+Çalıştırma:
+
+```powershell
+.\venv\Scripts\python.exe -m stereo_pipeline.cli .\ornek_stereo.wav `
+  --output-dir .\artifacts\stereo_run
+```
+
+### RabbitMQ'yu Docker ile çalıştırma
+
+RabbitMQ servisi `docker-compose.yml` ile hazırlanmıştır. Docker Desktop açıkken:
+
+```powershell
+docker compose up -d rabbitmq
+```
+
+Servis durumunu kontrol etmek için:
+
+```powershell
+docker compose ps
+docker compose logs rabbitmq
+```
+
+Yönetim ekranı varsayılan olarak:
+
+```text
+http://localhost:15672
+```
+
+Bağlantı, kullanıcı, parola, vhost ve queue adları kaynak koddan değil `.env`
+dosyasından okunur:
+
+```env
+STEREO_QUEUE_BACKEND=rabbitmq
+STEREO_WHISPER_QUEUE_ENABLED=false
+STEREO_ANALYSIS_QUEUE_ENABLED=false
+STEREO_WHISPER_QUEUE_NAME=stereo.whisper
+STEREO_ANALYSIS_QUEUE_NAME=stereo.analysis
+
+RABBITMQ_HOST=127.0.0.1
+RABBITMQ_PORT=5672
+RABBITMQ_MANAGEMENT_PORT=15672
+RABBITMQ_USER=stereo
+RABBITMQ_PASSWORD=stereo-change-me
+RABBITMQ_VHOST=/
+```
+
+Queue entegrasyonunu açmak için yalnız şu değerleri değiştirin:
+
+```env
+STEREO_WHISPER_QUEUE_ENABLED=true
+STEREO_ANALYSIS_QUEUE_ENABLED=true
+```
+
+Ardından normal stereo komutunu çalıştırın:
+
+```powershell
+.\venv\Scripts\python.exe .\run_stereo.py .\gorusme.wav --language auto
+```
+
+Bu durumda iki ayrılmış mono kanal `stereo.whisper` queue'suna, final transcript
+ve timeline ise `stereo.analysis` queue'suna kalıcı JSON mesaj olarak gönderilir.
+Yerel offline Whisper ve Ollama işlemleri de çalışmaya devam eder. RabbitMQ'yu
+durdurmak için:
+
+```powershell
+docker compose down
+```
+
+RabbitMQ verileri named volume içinde korunur. Veriyi de silmek isterseniz
+ayrıca `docker compose down -v` kullanılmalıdır.
+
 Varsayılan queue adları `stereo.whisper` ve `stereo.analysis` şeklindedir. Whisper
 queue etkinse her kanal `queue_payloads/` altında mono WAV olarak yazılır ve dosya
 yolu ile kanal metadatası yayınlanır. Analiz queue mesajı final transcript,

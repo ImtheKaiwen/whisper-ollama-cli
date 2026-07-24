@@ -4,7 +4,13 @@ from __future__ import annotations
 
 import argparse
 
-from StereoPipeline import QueueOptions, StereoPipeline
+from dotenv import load_dotenv
+
+from StereoPipeline import (
+    QueueOptions,
+    StereoPipeline,
+    build_queue_publisher_from_env,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -36,12 +42,12 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
+    load_dotenv()
     args = build_parser().parse_args()
+    queue_options = QueueOptions.from_env()
     pipeline = StereoPipeline(
-        queue_options=QueueOptions(
-            whisper_enabled=False,
-            analysis_enabled=False,
-        ),
+        queue_options=queue_options,
+        queue_publisher=build_queue_publisher_from_env(queue_options),
         language=args.language,
     )
     pipeline.analyze(
